@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 import { sendEmail } from "../services/mail.service.js";
 import jwt from "jsonwebtoken";
@@ -13,9 +12,7 @@ export async function register(req, res) {
       return res.status(409).json({ message: "User already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({ username, email, password: hashedPassword });
+    const user = await User.create({ username, email, password });
 
     const emailVerificationToken = jwt.sign({
       email: user.email
@@ -76,6 +73,15 @@ export async function login(req, res) {
   try {
     const {email, password} = req.body;
     const user = await User.findOne({email});
+
+    if(!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+        success: false,
+        err: "Invalid credentials"
+      });
+    }
+
     const isPasswordMatch = await user.comparePassword(password);
 
     if(!isPasswordMatch) {
