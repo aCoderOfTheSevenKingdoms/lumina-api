@@ -13,7 +13,7 @@ initSocket(httpServer);
 const startServer = async () => {
   await connectDatabase();
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 };
