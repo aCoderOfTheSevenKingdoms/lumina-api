@@ -3,7 +3,7 @@ import {ChatOpenAI} from "@langchain/openai";
 import {HumanMessage, SystemMessage, AIMessage} from "langchain";
 
 const chatModel = new ChatGoogleGenerativeAI({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-flash-lite",
     apiKey: process.env.GEMINI_API_KEY,
     thinkingConfig: {
         thinkingLevel: "LOW"
