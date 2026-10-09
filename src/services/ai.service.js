@@ -1,5 +1,7 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { HumanMessage, SystemMessage, AIMessage } from "langchain";
+import { HumanMessage, SystemMessage, AIMessage, AIMessageChunk, tool, createAgent } from "langchain";
+import * as z from "zod";
+import { searchInternet } from "./internet.service.js";
 
 const chatModel = new ChatGoogleGenerativeAI({
     model: "gemini-3.1-flash-lite",
@@ -7,6 +9,22 @@ const chatModel = new ChatGoogleGenerativeAI({
     thinkingConfig: {
         thinkingLevel: "LOW"
     }
+});
+
+const searchInternetTool = tool(
+    async ({ query }) => searchInternet(query),
+    {
+        name: "searchInternet",
+        description: "Use this tool to search the internet for relevant information to answer user queries. Input should be a search query string, and output will be a list of search results.",
+        schema: z.object({
+            query: z.string().describe("The search query to look up on the internet")
+        }),
+    }
+);
+
+const agent = createAgent({
+    model: chatModel,
+    tools: [searchInternetTool]
 });
 
 /**
@@ -33,8 +51,16 @@ export async function* streamResponse(messages) {
             : new AIMessage(msg.content)
     );
 
-    const stream = await chatModel.stream(lcMessages);
-    for await (const chunk of stream) {
+    const stream = await agent.stream(
+        { messages: lcMessages },
+        { streamMode: "messages" }
+    );
+
+    for await (const item of stream) {
+        // LangGraph "messages" mode yields [chunk, metadata] tuples.
+        const chunk = Array.isArray(item) ? item[0] : item;
+        if (!AIMessageChunk.isInstance(chunk)) continue;
+
         const text = extractText(chunk.content);
         if (text) yield text;
     }
