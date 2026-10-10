@@ -56,20 +56,44 @@ export async function chatMessageHandler(socket, payload, ack) {
             .limit(50);
 
         let full = "";
-        for await (const chunk of streamResponse(history)) {
-            full += chunk;
-            if (socket.connected) {
-                socket.emit("chat:ai_response_chunk", {
-                    chatId: chat._id,
-                    chunk,
-                });
+        const timeline = [];
+        const sources = [];
+        const startedAt = Date.now();
+        let durationMs = null;
+        for await (const event of streamResponse(history)) {
+            if(event.type === "text") {
+                if(durationMs === null) durationMs = Date.now() - startedAt;
+                full += event.text;
+                if(socket.connected) {
+                    socket.emit("chat:ai_response_chunk", {
+                        chatId: chat._id,
+                        chunk: event.text
+                    });
+                }
+                continue;
+            }
+            
+            // thinking / search/ sources / writing -> timeline stage
+            const entry = {type: event.type, at: new Date()};
+            if(event.type === "search") entry.query = event.query ?? null;
+            if(event.type === "sources") {
+                entry.sources = event.sources ?? [];
+                sources.push(...entry.sources);
+            }
+            timeline.push(entry);
+
+            if(socket.connected) {
+                socket.emit("chat:thought", {chatId: chat._id, event: entry});
             }
         }
+
+        const metadata = {timeline, sources, durationMs}; 
 
         const aiMessage = await Message.create({
             chat: chat._id,
             content: full,
             role: "ai",
+            metadata
         });
         await Chat.findByIdAndUpdate(chat._id, { updatedAt: new Date() });
 
@@ -77,6 +101,7 @@ export async function chatMessageHandler(socket, payload, ack) {
             chatId: chat._id,
             messageId: aiMessage._id,
             content: full,
+            metadata
         });
     } catch (err) {
         emitError(socket, chat?._id ?? chatId, "ai", "Failed to generate a response");
