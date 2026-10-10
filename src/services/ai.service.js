@@ -106,7 +106,7 @@ export async function* streamResponse(messages) {
 
     const stream = await agent.stream(
         { messages: lcMessages },
-        { streamMode: "messages" }
+        { streamMode: ["messages", "tools"] }
     );
 
     yield {type: "thinking"};
@@ -136,7 +136,7 @@ export async function* streamResponse(messages) {
             const event = parsed.data;
             if(!event || event.name !== "searchInternet") continue;
 
-            if(event.event === "on_tool_started") {
+            if(event.event === "on_tool_start") {
                 // INput is a JSON string of the tool args.
                 let query = null;
                 try {

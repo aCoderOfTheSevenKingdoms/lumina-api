@@ -16,7 +16,7 @@ const timelineEntrySchema = new mongoose.Schema({
   },
   query: {type: String, default: null},
   sources: {type: [sourceSchema], default: undefined},
-  at: {type: Date, default: Date.now()} 
+  at: {type: Date, default: Date.now} 
 }, {_id: false});
 
 const messageMetadataSchema = new mongoose.Schema({
